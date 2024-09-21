@@ -2,28 +2,34 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreDepartmentRequest;
+use App\Http\Requests\UpdateDepartmentRequest;
 use App\Services\DepartmentService;
-use App\Models\Employee;
+use App\Services\EmployeeService;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Department;
 
 class DepartmentController extends Controller
 {
     protected $departmentService;
+    protected $employeeService;
 
-    public function __construct(DepartmentService $departmentService)
+    public function __construct(DepartmentService $departmentService, EmployeeService $employeeService)
     {
         $this->departmentService = $departmentService;
+        $this->employeeService = $employeeService;
 
         $this->middleware('auth');
-        $this->middleware('role:admin')->only(['create', 'store', 'edit', 'update', 'destroy']);
     }
 
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Department::class);
+
         if (Auth::user()->role === 'employee') {
-            $departments = [$this->departmentService->getDepartmentById(Auth::user()->department_id)];
+            $department = $this->departmentService->getDepartmentById(Auth::user()->department_id);
+            $departments = $department ? [$department] : [];
         } else {
             $departments = $this->departmentService->getAllDepartments();
         }
@@ -37,69 +43,77 @@ class DepartmentController extends Controller
 
     public function create()
     {
-        $managers = Employee::all();
+        $this->authorize('create', Department::class);
+
+        $managers = $this->employeeService->getAllEmployees();
+
         return view('departments.create', compact('managers'));
     }
 
-    public function store(Request $request)
+    public function store(StoreDepartmentRequest $request)
     {
-        try {
-            $request->validate([
-                'name' => 'required|string|max:255',
-                'manager_id' => 'nullable|exists:employees,id',
-            ]);
+        $this->authorize('create', Department::class);
 
-            $department = $this->departmentService->createDepartment($request->all());
+        $department = $this->departmentService->createDepartment($request->validated());
 
-            if ($request->expectsJson()) {
-                return response()->json($department, 201);
-            }
-
-            return redirect()->route('departments.index')->with('success', 'Department created successfully.');
-        } catch (ValidationException $e) {
-            return redirect()->back()->withErrors($e->validator)->withInput();
+        if ($request->expectsJson()) {
+            return response()->json($department, 201);
         }
+
+        return redirect()->route('departments.index')->with('success', 'تم إنشاء القسم بنجاح.');
+    }
+
+    public function show($id)
+    {
+        $department = $this->departmentService->getDepartmentById($id);
+
+        $this->authorize('view', $department);
+
+        return view('departments.show', compact('department'));
     }
 
     public function edit($id)
     {
         $department = $this->departmentService->getDepartmentById($id);
-        $managers = Employee::all();
+
+        $this->authorize('update', $department);
+
+        $managers = $this->employeeService->getAllEmployees();
+
         return view('departments.edit', compact('department', 'managers'));
     }
 
-    public function update(Request $request, $id)
+    public function update(UpdateDepartmentRequest $request, $id)
     {
-        try {
-            $request->validate([
-                'name' => 'required|string|max:255',
-                'manager_id' => 'nullable|exists:employees,id',
-            ]);
+        $department = $this->departmentService->getDepartmentById($id);
 
-            $department = $this->departmentService->updateDepartment($id, $request->all());
+        $this->authorize('update', $department);
 
-            if ($request->expectsJson()) {
-                return response()->json($department);
-            }
+        $this->departmentService->updateDepartment($id, $request->validated());
 
-            return redirect()->route('departments.index')->with('success', 'Department updated successfully.');
-        } catch (ValidationException $e) {
-            return redirect()->back()->withErrors($e->validator)->withInput();
+        if ($request->expectsJson()) {
+            return response()->json($department);
         }
+
+        return redirect()->route('departments.index')->with('success', 'تم تحديث القسم بنجاح.');
     }
 
     public function destroy(Request $request, $id)
     {
+        $department = $this->departmentService->getDepartmentById($id);
+
+        $this->authorize('delete', $department);
+
         $result = $this->departmentService->deleteDepartment($id);
 
-        if (isset($result['error'])) {
-            return redirect()->route('departments.index')->with('error', $result['error']);
+        if (!$result) {
+            return redirect()->route('departments.index')->with('error', 'لا يمكن حذف القسم لأنه يحتوي على موظفين.');
         }
 
         if ($request->expectsJson()) {
-            return response()->json(['message' => 'Department deleted successfully.']);
+            return response()->json(['message' => 'تم حذف القسم بنجاح.']);
         }
 
-        return redirect()->route('departments.index')->with('success', 'Department deleted successfully.');
+        return redirect()->route('departments.index')->with('success', 'تم حذف القسم بنجاح.');
     }
 }

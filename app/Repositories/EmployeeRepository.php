@@ -6,9 +6,20 @@ use App\Models\Employee;
 
 class EmployeeRepository
 {
-    public function getAllEmployees()
+    public function getAllEmployees(array $filters = [], $perPage = 15)
     {
-        return Employee::all();
+        $query = Employee::query();
+
+        if (isset($filters['department_id'])) {
+            $query->where('department_id', $filters['department_id']);
+        }
+
+        if (isset($filters['manager_id'])) {
+            $query->where('manager_id', $filters['manager_id']);
+        }
+
+
+        return $query->paginate($perPage);
     }
 
     public function getEmployeeById($id)
@@ -18,21 +29,20 @@ class EmployeeRepository
 
     public function createEmployee(array $data)
     {
-        $data['password'] = bcrypt($data['password']);
-        return Employee::create($data);
+        $employee = new Employee($data);
+        $employee->save();
+
+        return $employee;
     }
 
     public function updateEmployee($id, array $data)
     {
         $employee = $this->getEmployeeById($id);
 
-        if (!empty($data['password'])) {
-            $data['password'] = bcrypt($data['password']);
-        } else {
-            unset($data['password']);
-        }
+        $employee->fill($data);
 
-        $employee->update($data);
+        $employee->save();
+
         return $employee;
     }
 
@@ -40,5 +50,7 @@ class EmployeeRepository
     {
         $employee = $this->getEmployeeById($id);
         $employee->delete();
+
+        return true;
     }
 }

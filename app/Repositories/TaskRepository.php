@@ -6,14 +6,14 @@ use App\Models\Task;
 
 class TaskRepository
 {
-    public function getAllTasks()
+    public function getAllTasks($perPage = 15)
     {
-        return Task::all();
+        return Task::paginate($perPage);
     }
 
-    public function getTasksByEmployeeId($employeeId)
+    public function getTasksByEmployeeId($employeeId, $perPage = 15)
     {
-        return Task::where('employee_id', $employeeId)->get();
+        return Task::where('employee_id', $employeeId)->paginate($perPage);
     }
 
     public function getTaskById($id)
@@ -30,13 +30,15 @@ class TaskRepository
     {
         $task = $this->getTaskById($id);
         $task->update($data);
+
         return $task;
     }
-
 
     public function deleteTask($id)
     {
         $task = $this->getTaskById($id);
         $task->delete();
+
+        return true;
     }
 }

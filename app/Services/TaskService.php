@@ -14,12 +14,12 @@ class TaskService
         $this->taskRepository = $taskRepository;
     }
 
-    public function getAllTasks()
+    public function getAllTasks($perPage = 15)
     {
         if (Auth::user()->role === 'admin') {
-            return $this->taskRepository->getAllTasks();
+            return $this->taskRepository->getAllTasks($perPage);
         } else {
-            return $this->taskRepository->getTasksByEmployeeId(Auth::id());
+            return $this->taskRepository->getTasksByEmployeeId(Auth::id(), $perPage);
         }
     }
 
@@ -30,11 +30,13 @@ class TaskService
 
     public function createTask(array $data)
     {
+
         return $this->taskRepository->createTask($data);
     }
 
     public function updateTask($id, array $data)
     {
+
         return $this->taskRepository->updateTask($id, $data);
     }
 

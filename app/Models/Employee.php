@@ -4,11 +4,11 @@ namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Employee extends Authenticatable
 {
-    use HasApiTokens, Notifiable;
+    use Notifiable;
 
     protected $fillable = [
         'first_name',
@@ -17,10 +17,9 @@ class Employee extends Authenticatable
         'phone',
         'password',
         'salary',
-        'image',
+        'role',
         'manager_id',
         'department_id',
-        'role'
     ];
 
     protected $hidden = [
@@ -28,13 +27,11 @@ class Employee extends Authenticatable
         'remember_token',
     ];
 
-    protected $casts = [
-        'email_verified_at' => 'datetime',
-    ];
-
-    public function subordinates()
+    public function setPasswordAttribute($value)
     {
-        return $this->hasMany(Employee::class, 'manager_id');
+        if ($value) {
+            $this->attributes['password'] = bcrypt($value);
+        }
     }
 
     public function manager()
@@ -42,13 +39,13 @@ class Employee extends Authenticatable
         return $this->belongsTo(Employee::class, 'manager_id');
     }
 
+    public function subordinates()
+    {
+        return $this->hasMany(Employee::class, 'manager_id');
+    }
+
     public function department()
     {
         return $this->belongsTo(Department::class);
-    }
-
-    public function tasks()
-    {
-        return $this->hasMany(Task::class);
     }
 }

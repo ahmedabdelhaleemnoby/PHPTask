@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreEmployeeRequest;
+use App\Http\Requests\UpdateEmployeeRequest;
 use App\Services\EmployeeService;
 use Illuminate\Http\Request;
-use App\Models\Employee;
-use App\Models\Department;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\ValidationException;
-
+use Illuminate\Support\Facades\Gate;
+use App\Models\Employee;
 
 class EmployeeController extends Controller
 {
@@ -18,7 +18,8 @@ class EmployeeController extends Controller
     {
         $this->employeeService = $employeeService;
 
-        $this->middleware('role:admin')->only(['create', 'store', 'edit', 'update', 'destroy']);
+        $this->middleware('auth');
+
     }
 
     public function index(Request $request)
@@ -38,57 +39,75 @@ class EmployeeController extends Controller
 
     public function create()
     {
-        $managers = Employee::all();
-        $departments = Department::all();
+        $this->authorize('create', Employee::class);
+
+        $managers = $this->employeeService->getAllEmployees();
+        $departments = app('App\Services\DepartmentService')->getAllDepartments(); // افترض أن لديك DepartmentService
+
         return view('employees.create', compact('managers', 'departments'));
     }
 
-    public function store(Request $request)
+    public function store(StoreEmployeeRequest $request)
     {
-        try {
-            $employee = $this->employeeService->createEmployee($request->all());
+        $this->authorize('create', Employee::class);
 
-            if ($request->expectsJson()) {
-                return response()->json($employee, 201);
-            }
+        $employee = $this->employeeService->createEmployee($request->validated());
 
-            return redirect()->route('employees.index');
-        } catch (ValidationException $e) {
-            return redirect()->back()->withErrors($e->validator)->withInput();
+        if ($request->expectsJson()) {
+            return response()->json($employee, 201);
         }
+
+        return redirect()->route('employees.index')->with('success', 'تم إنشاء الموظف بنجاح.');
     }
 
     public function edit($id)
     {
-        $employee = Employee::findOrFail($id);
-        $managers = Employee::all();
-        $departments = Department::all();
+        $employee = $this->employeeService->getEmployeeById($id);
+
+        $this->authorize('update', $employee);
+
+        $managers = $this->employeeService->getAllEmployees();
+        $departments = app('App\Services\DepartmentService')->getAllDepartments();
+
         return view('employees.edit', compact('employee', 'managers', 'departments'));
     }
 
-    public function update(Request $request, $id)
+    public function update(UpdateEmployeeRequest $request, $id)
     {
-        try {
-            $employee = $this->employeeService->updateEmployee($id, $request->all());
+        $employee = $this->employeeService->getEmployeeById($id);
 
-            if ($request->expectsJson()) {
-                return response()->json($employee);
-            }
+        // تحقق من الصلاحيات
+        $this->authorize('update', $employee);
 
-            return redirect()->route('employees.index');
-        } catch (ValidationException $e) {
-            return redirect()->back()->withErrors($e->validator)->withInput();
+        $this->employeeService->updateEmployee($id, $request->validated());
+
+        if ($request->expectsJson()) {
+            return response()->json($employee);
         }
+
+        return redirect()->route('employees.index')->with('success', 'تم تحديث الموظف بنجاح.');
     }
 
     public function destroy(Request $request, $id)
     {
+        $employee = $this->employeeService->getEmployeeById($id);
+
+        $this->authorize('delete', $employee);
+
         $this->employeeService->deleteEmployee($id);
 
         if ($request->expectsJson()) {
-            return response()->json(['message' => 'Employee deleted successfully.']);
+            return response()->json(['message' => 'تم حذف الموظف بنجاح.']);
         }
 
-        return redirect()->route('employees.index');
+        return redirect()->route('employees.index')->with('success', 'تم حذف الموظف بنجاح.');
+    }
+
+    public function show($id)
+    {
+        $employee = $this->employeeService->getEmployeeById($id);
+        $this->authorize('view', $employee);
+
+        return view('employees.show', compact('employee'));
     }
 }

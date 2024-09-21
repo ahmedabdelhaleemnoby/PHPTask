@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Repositories\DepartmentRepository;
-use Illuminate\Support\Facades\Auth;
 
 class DepartmentService
 {
@@ -14,13 +13,9 @@ class DepartmentService
         $this->departmentRepository = $departmentRepository;
     }
 
-    public function getAllDepartments()
+    public function getAllDepartments($perPage = 15)
     {
-        if (Auth::user()->role === 'admin') {
-            return $this->departmentRepository->getAllDepartments();
-        } else {
-            return $this->departmentRepository->getDepartmentById(Auth::user()->department_id);
-        }
+        return $this->departmentRepository->getAllDepartments($perPage);
     }
 
     public function getDepartmentById($id)
@@ -30,11 +25,13 @@ class DepartmentService
 
     public function createDepartment(array $data)
     {
+
         return $this->departmentRepository->createDepartment($data);
     }
 
     public function updateDepartment($id, array $data)
     {
+
         return $this->departmentRepository->updateDepartment($id, $data);
     }
 
@@ -43,7 +40,7 @@ class DepartmentService
         $department = $this->getDepartmentById($id);
 
         if ($department->employees()->count() > 0) {
-            return ['error' => "Cannot delete department with employees. Please remove employees first."];
+            return false;
         }
 
         return $this->departmentRepository->deleteDepartment($id);

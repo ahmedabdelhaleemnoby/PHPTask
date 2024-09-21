@@ -6,9 +6,9 @@ use App\Models\Department;
 
 class DepartmentRepository
 {
-    public function getAllDepartments()
+    public function getAllDepartments($perPage = 15)
     {
-        return Department::all();
+        return Department::paginate($perPage);
     }
 
     public function getDepartmentById($id)
@@ -25,6 +25,7 @@ class DepartmentRepository
     {
         $department = $this->getDepartmentById($id);
         $department->update($data);
+
         return $department;
     }
 
@@ -32,5 +33,7 @@ class DepartmentRepository
     {
         $department = $this->getDepartmentById($id);
         $department->delete();
+
+        return true;
     }
 }
